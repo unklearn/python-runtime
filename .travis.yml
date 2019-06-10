@@ -7,11 +7,7 @@ matrix:
   include:
   - name: "3.5 Tests"
     python: "3.5"
-    env: TEST_SUITE=unit
-  - name: "3.5 Integration Tests"
-    python: "3.5"
-    env: TEST_SUITE=integration
-script: pytest -m --cov=core $TEST_SUITE
+script: pytest -m --cov=core
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
