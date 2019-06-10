@@ -1,0 +1,10 @@
+language: python
+matrix:
+  include:
+  - name: "3.5 Tests"
+    python: "3.5"
+    env: TEST_SUITE=unit
+  - name: "3.5 Integration Tests"
+    python: "3.5"
+    env: TEST_SUITE=integration
+script: pytest -m $TEST_SUITE
