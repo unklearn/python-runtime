@@ -17,7 +17,7 @@ before_script:
   - chmod +x ./cc-test-reporter
   - ./cc-test-reporter --debug before-build
 
-script: coverage run -m pytest
+script: coverage run --source core --omit */site-packages/* -m pytest
 
 after_script:
   - coverage xml
