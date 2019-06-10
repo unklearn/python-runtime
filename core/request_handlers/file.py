@@ -75,29 +75,33 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         stdout, stderr = p.communicate()
         return stderr.decode('utf-8'), stdout.decode('utf-8')
 
-    def post(self):
-        """Run the file at the given file path"""
-        file_data = tornado.escape.json_decode(self.request.body)
-
+    def validate_post_body(self, file_data):
+        """Validate the necessary arguments"""
         for arg in ['cellId', 'channel',  'filePath']:
             d = file_data.get(arg, None)
             if d is None or (d and not len(d)):
                 raise tornado.web.MissingArgumentError(arg)
 
-        file_path = file_data.get('filePath', None)
-        cell_id = file_data.get('cellId', None)
-        channel = file_data.get('channel', None)
-
+        file_path = file_data['filePath']
         file_path = self.get_secure_filename(file_path)
-
-        if not file_path:
-            raise tornado.web.MissingArgumentError('filePath')
 
         if not file_path.endswith('.py'):
             raise tornado.web.HTTPError(400, 'Cannot execute a file whose extension is not .py')
 
         if not os.path.exists(file_path):
             raise tornado.web.HTTPError(404, 'Cannot find file at {}'.format(file_path))
+
+    def post(self):
+        """Run the file at the given file path"""
+        file_data = tornado.escape.json_decode(self.request.body)
+
+        self.validate_post_body(file_data)
+
+        file_path = file_data.get('filePath', None)
+        cell_id = file_data.get('cellId', None)
+        channel = file_data.get('channel', None)
+
+        file_path = self.get_secure_filename(file_path)
 
         self.socketio.emit(CellEvents.START_RUN, {
             'id': cell_id,
