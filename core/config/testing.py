@@ -35,3 +35,5 @@ class TestingConfig(BaseConfig):
     REDIS_BROKER_URL = 'redis://redis:6379'
 
     SOCKETIO = DummySocketIO()
+
+    FILE_ROOT_DIR = '/tmp'

@@ -80,7 +80,8 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         file_data = tornado.escape.json_decode(self.request.body)
 
         for arg in ['cellId', 'channel',  'filePath']:
-            if file_data.get(arg, None) is None:
+            d = file_data.get(arg, None)
+            if d is None or (d and not len(d)):
                 raise tornado.web.MissingArgumentError(arg)
 
         file_path = file_data.get('filePath', None)
@@ -95,6 +96,9 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         if not file_path.endswith('.py'):
             raise tornado.web.HTTPError(400, 'Cannot execute a file whose extension is not .py')
 
+        if not os.path.exists(file_path):
+            raise tornado.web.HTTPError(404, 'Cannot find file at {}'.format(file_path))
+
         self.socketio.emit(CellEvents.START_RUN, {
             'id': cell_id,
             'status': CellExecutionStatus.BUSY
@@ -106,7 +110,7 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.RESULT, {
             'id': cell_id,
             'output': out,
-            'error': err,
+            'error': err.replace(self.file_path_root + '/', ''),
         }, room=channel, namespace=CELLS_NAMESPACE)
 
         if err and len(err):

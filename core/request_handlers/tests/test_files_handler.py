@@ -149,3 +149,113 @@ class TestFilesHandler(TestHandlerBase):
         resp = self.fetch('/files/modules%2Ftest.py', method='GET')
 
         assert resp.code == 404
+
+
+
+@pytest.mark.integration
+@pytest.mark.handlers
+class TestFileExecutionHandler(TestHandlerBase):
+
+    def test_missing_args(self):
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({}))
+        assert resp.code == 400
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid'
+        }))
+        assert resp.code == 400
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel'
+        }))
+        assert resp.code == 400
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel',
+            'filePath': ''
+        }))
+        assert resp.code == 400
+
+    def test_non_existent_file_exec(self):
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel',
+            'filePath': 'modules/test.py'
+        }))
+        assert resp.code == 404
+
+    def test_invalid_file_extension(self):
+        app = self.get_app()
+        file_path = os.path.join(app.config.FILE_ROOT_DIR, 'modules/test.sh')
+
+        with open(file_path, 'w') as f:
+            f.write('echo Hello')
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel',
+            'filePath': 'modules/test.sh'
+        }))
+        assert resp.code == 400
+
+        os.unlink(file_path)
+
+    def test_file_run_success(self):
+        app = self.get_app()
+        file_path = os.path.join(app.config.FILE_ROOT_DIR, 'modules/test.py')
+
+        with open(file_path, 'w') as f:
+            f.write('print("Hello")')
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel',
+            'filePath': 'modules/test.py'
+        }))
+        assert resp.code == 200
+
+        assert self.socketio.find_event(CellEvents.START_RUN, {
+            'id': 'cid',
+            'status': CellExecutionStatus.BUSY
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        assert self.socketio.find_event(CellEvents.RESULT, {
+            'id': 'cid',
+            'output': 'Hello\n',
+            'error': ''
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        assert self.socketio.find_event(CellEvents.END_RUN, {
+            'id': 'cid',
+            'status': CellExecutionStatus.DONE
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        os.unlink(file_path)
+
+    def test_file_run_failure(self):
+        app = self.get_app()
+        file_path = os.path.join(app.config.FILE_ROOT_DIR, 'modules/test.py')
+
+        with open(file_path, 'w') as f:
+            f.write('print("Hello"')
+
+        resp = self.fetch('/file-runs/', method='POST', body=json.dumps({
+            'cellId': 'cid',
+            'channel': 'channel',
+            'filePath': 'modules/test.py'
+        }))
+        assert resp.code == 200
+        assert self.socketio.find_event(CellEvents.START_RUN, {
+            'id': 'cid',
+            'status': CellExecutionStatus.BUSY
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        assert self.socketio.find_event(CellEvents.RESULT, {
+            'id': 'cid',
+            'output': '',
+            'error': '  File "modules/test.py", line 2\n    \n        '
+                     '         ^\nSyntaxError: unexpected EOF while parsing\n'
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        assert self.socketio.find_event(CellEvents.END_RUN, {
+            'id': 'cid',
+            'status': CellExecutionStatus.ERROR
+        }, room='channel', namespace=CELLS_NAMESPACE)
+        os.unlink(file_path)
