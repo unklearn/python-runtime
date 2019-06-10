@@ -1,3 +1,7 @@
+env:
+  global:
+    - CC_TEST_REPORTER_ID=75c7ab4b9e49fab27658bfd004735721b927850b1b0f3168de9077d7f51102b3
+
 language: python
 matrix:
   include:
@@ -7,4 +11,11 @@ matrix:
   - name: "3.5 Integration Tests"
     python: "3.5"
     env: TEST_SUITE=integration
-script: pytest -m $TEST_SUITE
+script: pytest -m --cov=core $TEST_SUITE
+
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
