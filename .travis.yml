@@ -7,7 +7,7 @@ matrix:
   include:
   - name: "3.5 Tests"
     python: "3.5"
-script: pytest --cov=core
+script: coverage run -m pytest
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
