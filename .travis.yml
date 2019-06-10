@@ -15,10 +15,10 @@ install:
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
   - chmod +x ./cc-test-reporter
-  - ./cc-test-reporter --debug before-build
+  - ./cc-test-reporter before-build
 
 script: coverage run --source core --omit */site-packages/* -m pytest
 
 after_script:
   - coverage xml
-  - ./cc-test-reporter --debug after-build --exit-code $TRAVIS_TEST_RESULT
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
