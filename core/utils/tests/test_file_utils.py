@@ -1,7 +1,7 @@
 import pytest
 import os
 
-from ..file_utils import create_temporary_shell_file, secure_absolute_file_path
+from ..file_utils import create_temporary_shell_file, secure_relative_file_path
 
 
 @pytest.mark.unit
@@ -19,6 +19,6 @@ def test_temporary_shell_file_creation():
 @pytest.mark.unit
 @pytest.mark.utils
 def test_secure_absolute_path():
-    assert secure_absolute_file_path('../../../.ssh/config', '/home/user/Desktop') == '/home/user/Desktop/.ssh/config'
-    assert secure_absolute_file_path('~/config', '/home/user/Desktop') == '/home/user/Desktop/config'
-    assert secure_absolute_file_path('../../~/config', '/home/user/Desktop') == '/home/user/Desktop/config'
+    assert secure_relative_file_path('../../../.ssh/config') == '.ssh/config'
+    assert secure_relative_file_path('~/config') == 'config'
+    assert secure_relative_file_path('../../~/config') == 'config'

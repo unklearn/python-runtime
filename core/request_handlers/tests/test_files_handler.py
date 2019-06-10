@@ -13,8 +13,8 @@ class TestFilesHandler(TestHandlerBase):
 
     def assert_file_and_remove(self, file_path, content=None, remove=True, response=None):
         app = self.get_app()
-        file_path = os.path.join(app.config.FILE_ROOT_DIR, file_path)
-        assert os.path.exists(file_path)
+        full_path = os.path.join(app.config.FILE_ROOT_DIR, file_path)
+        assert os.path.exists(full_path)
 
         if response:
             body = response.body.decode('utf-8')
@@ -22,11 +22,11 @@ class TestFilesHandler(TestHandlerBase):
             assert body == file_path
 
         if content:
-            with open(file_path, 'r') as f:
+            with open(full_path, 'r') as f:
                 assert f.read() == content
 
         if remove:
-            os.unlink(file_path)
+            os.unlink(full_path)
 
     def test_creating_files(self):
         resp = self.fetch('/files',

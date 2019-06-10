@@ -77,12 +77,6 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         return self.write(file_path)
 
 
-class PingHandler(tornado.web.RequestHandler):
-    """A request handler for health status checks"""
-    def get(self):
-        return self.write('pong')
-
-
 class EndpointsHandler(tornado.web.RequestHandler):
     """Handle endpoint related requests"""
 

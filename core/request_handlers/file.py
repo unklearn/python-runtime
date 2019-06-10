@@ -5,7 +5,7 @@ import tornado.escape
 import tornado.web
 from subprocess import Popen, PIPE
 
-from core.utils import secure_absolute_file_path
+from core.utils import secure_relative_file_path
 from core.constants import CellEvents, CellExecutionStatus, CELLS_NAMESPACE
 
 
@@ -14,7 +14,7 @@ class FilesHandler(tornado.web.RequestHandler):
 
     def get_secure_filename(self, file_path):
         """Get secure file path relative to root directory"""
-        return secure_absolute_file_path(file_path, self.file_path_root)
+        return os.path.join(self.file_path_root, secure_relative_file_path(file_path))
 
     def initialize(self, file_path_root=None):
         """Init called by tornado"""
@@ -51,7 +51,8 @@ class FilesHandler(tornado.web.RequestHandler):
             os.makedirs(base_dir)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(file_content)
-        return self.write(file_path)
+        # Send back the secure relative path
+        return self.write(secure_relative_file_path(file_data['filePath']))
 
 
 class FileExecutionHandler(tornado.web.RequestHandler):
@@ -59,7 +60,7 @@ class FileExecutionHandler(tornado.web.RequestHandler):
 
     def get_secure_filename(self, file_path):
         """Get secure file path relative to root directory"""
-        return secure_absolute_file_path(file_path, self.file_path_root)
+        return os.path.join(self.file_path_root, secure_relative_file_path(file_path))
 
     def initialize(self, file_path_root=None, socketio=None):
         """Init called by tornado"""

@@ -35,24 +35,19 @@ def create_temporary_shell_file(cell_id, contents, temp_dir='tmp'):
         os.unlink(filename)
 
 
-def secure_absolute_file_path(file_path, root_dir):
-    """Given a file path and root directory, make sure that the path is relative to the root directory.
-
-    This means that the path cannot go outside root directory
+def secure_relative_file_path(file_path):
+    """Return a secure version of file path by making path absolute
 
     Parameters
     ----------
     file_path: str
         The path to file
 
-    root_dir: str
-        The root directory for file path
-
     Returns
     -------
     str
-        The path with root_dir as root directory and relative paths removed
+        The path with all relative references removed
     """
     file_path = file_path.replace('..', '')
     file_path = re.sub(r"{}+".format(os.sep), os.sep, file_path).lstrip(os.sep)
-    return os.path.abspath(os.path.join(root_dir, file_path.replace('~', '').lstrip(os.sep)))
+    return file_path.replace('~', '').lstrip(os.sep)

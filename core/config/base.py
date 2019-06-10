@@ -12,4 +12,6 @@ class BaseConfig:
 
     FILE_ROOT_DIR = '/tmp/code-files'
 
+    ENDPOINT_CONFIG_ROOT_DIR = '/tmp/endpoint-configs'
+
     SOCKETIO = None
