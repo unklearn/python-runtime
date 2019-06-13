@@ -41,7 +41,12 @@ Drop this in `.git/hooks/pre-commit`
 
 # Get list of staged files and find python files and format using yapf
 
-git diff --name-only --cached | grep .py | xargs yapf -vv -i
+files=$(git diff --name-only --cached | grep .py)
+if [ ! -z $files ];
+then
+  yapf -vv -i $files
+  git add $files
+fi
 ```
 
 
