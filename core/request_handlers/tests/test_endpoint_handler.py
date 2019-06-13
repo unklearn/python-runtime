@@ -31,8 +31,6 @@ class TestEndpointConfigurationHandler(TestHandlerBase):
         if remove:
             os.unlink(full_path)
 
-
-
     def test_endpoint_config_creation(self):
         resp = self.fetch('/endpoint-configs',
                           method='POST',

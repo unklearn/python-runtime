@@ -9,6 +9,8 @@ config = get_current_config(os.environ.get('UNKLEARN_ENVIRONMENT_TYPE'))
 app = tornado.web.Application([
     # Ping handler
     (r"/ping/?", PingHandler),
+    # Get runtime info
+    (r"/info?", InfoRequestHandler),
     # Interactive REPL like
     (r"/interactive/?", InteractiveExecutionRequestHandler, dict(socketio=config.SOCKETIO)),
     # Creating files

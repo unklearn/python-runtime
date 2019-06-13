@@ -1,4 +1,0 @@
-tornado==5.0.0
-requests
-flask-socketio==3.3.2
-redis==2.10.6
