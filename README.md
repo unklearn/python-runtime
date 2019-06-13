@@ -37,5 +37,11 @@ Before commit, a pre-commit hook will format the files.
 Drop this in `.git/hooks/pre-commit`
 
 ```bash
-    yapf -i -vv --recursive core
+#!/bin/sh
+
+# Get list of staged files and find python files and format using yapf
+
+git diff --name-only --cached | grep .py | xargs yapf -vv -i
 ```
+
+
