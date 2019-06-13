@@ -2,6 +2,7 @@
 Constants
 """
 
+
 class CellEvents:
     START_RUN = 'cell_run_start'
     RESULT = 'cell_result'

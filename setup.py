@@ -20,6 +20,9 @@ setup(name='unklearn_python_runtime',
         'testing': [
             'pytest==4.6.1',
             'coverage==4.5.3'
+        ],
+        'development': [
+            'yapf==0.27.0'
         ]
       },
       install_requires=[

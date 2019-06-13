@@ -20,6 +20,7 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
     For now we are simply executing the shell commands by writing to a temporary file
 
     """
+
     def initialize(self, socketio):
         self.console = code.InteractiveConsole()
         self.socketio = socketio
@@ -35,11 +36,14 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.START_RUN, {
             'id': cell_id,
             'status': CellExecutionStatus.BUSY
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
         status = CellExecutionStatus.DONE
         try:
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(
+                    err):
                 yield self.console.runcode(code)
         except SyntaxError:
             self.console.showsyntaxerror()
@@ -54,7 +58,9 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
             'id': cell_id,
             'output': out,
             'error': err,
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
         if err and len(err):
             status = CellExecutionStatus.ERROR
@@ -63,7 +69,9 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.END_RUN, {
             'id': cell_id,
             'status': status
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
     @gen.coroutine
     def execute_shell(self, code, cell_id, channel):
@@ -71,19 +79,31 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.START_RUN, {
             'id': cell_id,
             'status': CellExecutionStatus.BUSY
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
         with create_temporary_shell_file(cell_id, code) as filename:
-            process = subprocess.run(['bash', filename], stdout=PIPE, stderr=PIPE)
+            process = subprocess.run(['bash', filename],
+                                     stdout=PIPE,
+                                     stderr=PIPE)
             out, err = process.stdout, process.stderr
-            self.socketio.emit(CellEvents.RESULT, {
-                'id': cell_id,
-                'output': out.decode('utf-8'),
-                'error': err.decode('utf-8').replace(filename, '-bash'),
-            }, room=channel, namespace=CELLS_NAMESPACE)
+            self.socketio.emit(
+                CellEvents.RESULT, {
+                    'id': cell_id,
+                    'output': out.decode('utf-8'),
+                    'error': err.decode('utf-8').replace(filename, '-bash'),
+                },
+                room=channel,
+                namespace=CELLS_NAMESPACE)
         self.socketio.emit(CellEvents.END_RUN, {
-            'id': cell_id,
-            'status': CellExecutionStatus.ERROR if (err and len(err)) else CellExecutionStatus.DONE
-        }, room=channel, namespace=CELLS_NAMESPACE)
+            'id':
+            cell_id,
+            'status':
+            CellExecutionStatus.ERROR if
+            (err and len(err)) else CellExecutionStatus.DONE
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
     @gen.coroutine
     def execute_code(self, language, cell_id, channel, code):
@@ -99,12 +119,7 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         language = self.get_query_argument('language')
         channel = self.get_query_argument('channel')
         cell_id = self.get_query_argument('cellId')
-        return self.execute_code(
-            language,
-            cell_id,
-            channel,
-            code
-        )
+        return self.execute_code(language, cell_id, channel, code)
 
     def post(self):
         language = self.get_query_argument('language')
@@ -112,9 +127,4 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         code = data['code']
         channel = data['channel']
         cell_id = data['cellId']
-        return self.execute_code(
-            language,
-            cell_id,
-            channel,
-            code
-        )
+        return self.execute_code(language, cell_id, channel, code)

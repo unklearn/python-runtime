@@ -11,7 +11,8 @@ def test_temporary_shell_file_creation():
         assert os.path.exists(filename)
         with open(filename, 'r') as f:
             assert f.read() == 'contents'
-        assert os.system('if [ -x {} ]; then true else false; fi'.format(filename)) == 0
+        assert os.system(
+            'if [ -x {} ]; then true else false; fi'.format(filename)) == 0
         assert filename.endswith('.sh')
     assert not os.path.exists(filename)
 

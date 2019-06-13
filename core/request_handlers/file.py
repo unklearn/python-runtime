@@ -14,7 +14,8 @@ class FilesHandler(tornado.web.RequestHandler):
 
     def get_secure_filename(self, file_path):
         """Get secure file path relative to root directory"""
-        return os.path.join(self.file_path_root, secure_relative_file_path(file_path))
+        return os.path.join(self.file_path_root,
+                            secure_relative_file_path(file_path))
 
     def initialize(self, file_path_root=None):
         """Init called by tornado"""
@@ -24,8 +25,10 @@ class FilesHandler(tornado.web.RequestHandler):
         """Get a file given the file path"""
         file_path = self.get_secure_filename(file_path)
         if not os.path.exists(file_path):
-            raise tornado.web.HTTPError(status_code=404,
-                                        log_message='Cannot find a file with the file path: {}'.format(file_path))
+            raise tornado.web.HTTPError(
+                status_code=404,
+                log_message='Cannot find a file with the file path: {}'.format(
+                    file_path))
         with open(file_path, 'r') as f:
             contents = f.read()
         return self.write(contents)
@@ -60,7 +63,8 @@ class FileExecutionHandler(tornado.web.RequestHandler):
 
     def get_secure_filename(self, file_path):
         """Get secure file path relative to root directory"""
-        return os.path.join(self.file_path_root, secure_relative_file_path(file_path))
+        return os.path.join(self.file_path_root,
+                            secure_relative_file_path(file_path))
 
     def initialize(self, file_path_root=None, socketio=None):
         """Init called by tornado"""
@@ -68,17 +72,22 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         self.socketio = socketio
 
     def execute_python_file(self, file_path):
-        p = Popen([sys.executable, file_path], env={
-            # Module discovery
-            'PYTHONPATH': self.file_path_root
-        }, stdout=PIPE, stderr=PIPE, cwd=self.file_path_root)
+        p = Popen(
+            [sys.executable, file_path],
+            env={
+                # Module discovery
+                'PYTHONPATH': self.file_path_root
+            },
+            stdout=PIPE,
+            stderr=PIPE,
+            cwd=self.file_path_root)
         # This is blocking. TODO: Tharun use asyncio to unblock
         stdout, stderr = p.communicate()
         return stderr.decode('utf-8'), stdout.decode('utf-8')
 
     def validate_post_body(self, file_data):
         """Validate the necessary arguments"""
-        for arg in ['cellId', 'channel',  'filePath']:
+        for arg in ['cellId', 'channel', 'filePath']:
             d = file_data.get(arg, None)
             if d is None or (d and not len(d)):
                 raise tornado.web.MissingArgumentError(arg)
@@ -87,10 +96,12 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         file_path = self.get_secure_filename(file_path)
 
         if not file_path.endswith('.py'):
-            raise tornado.web.HTTPError(400, 'Cannot execute a file whose extension is not .py')
+            raise tornado.web.HTTPError(
+                400, 'Cannot execute a file whose extension is not .py')
 
         if not os.path.exists(file_path):
-            raise tornado.web.HTTPError(404, 'Cannot find file at {}'.format(file_path))
+            raise tornado.web.HTTPError(
+                404, 'Cannot find file at {}'.format(file_path))
 
     def post(self):
         """Run the file at the given file path"""
@@ -107,7 +118,9 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.START_RUN, {
             'id': cell_id,
             'status': CellExecutionStatus.BUSY
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
         status = CellExecutionStatus.DONE
 
@@ -116,7 +129,9 @@ class FileExecutionHandler(tornado.web.RequestHandler):
             'id': cell_id,
             'output': out,
             'error': err.replace(self.file_path_root + '/', ''),
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
         if err and len(err):
             status = CellExecutionStatus.ERROR
@@ -125,7 +140,9 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         self.socketio.emit(CellEvents.END_RUN, {
             'id': cell_id,
             'status': status
-        }, room=channel, namespace=CELLS_NAMESPACE)
+        },
+                           room=channel,
+                           namespace=CELLS_NAMESPACE)
 
         # Publish result on socketio channels
         return self.write('Ok')

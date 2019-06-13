@@ -9,9 +9,10 @@ class InfoRequestHandler(tornado.web.RequestHandler):
     """A request handler that returns information on runtime capabilities"""
 
     def get(self):
-        return self.write(json.dumps({
-            "name": "python-runtime",
-            "image": "python",
-            "tagRegex": "^(3.*)|latest",
-            "languages": ["shell", "python"]
-        }))
+        return self.write(
+            json.dumps({
+                "name": "python-runtime",
+                "image": "python",
+                "tagRegex": "^(3.*)|latest",
+                "languages": ["shell", "python"]
+            }))
