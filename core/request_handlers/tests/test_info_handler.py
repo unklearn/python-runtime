@@ -14,11 +14,9 @@ class TestInfoHandler(TestHandlerBase):
         resp = self.fetch('/info')
         assert resp.code == 200
         assert resp.body.decode('utf-8') == json.dumps({
-            "name":
-            "python-runtime",
-            "image":
-            "python",
-            "tagRegex":
-            "^(3.*)|latest",
+            "name": "python-runtime",
+            "image": "python",
+            "tagRegex": "^(3.*)|latest",
+            "modes": ["interactive", "file", "endpoint"],
             "languages": ["shell", "python"]
         })

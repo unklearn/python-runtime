@@ -14,5 +14,6 @@ class InfoRequestHandler(tornado.web.RequestHandler):
                 "name": "python-runtime",
                 "image": "python",
                 "tagRegex": "^(3.*)|latest",
+                "modes": ["interactive", "file", "endpoint"],
                 "languages": ["shell", "python"]
             }))
