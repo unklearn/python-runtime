@@ -58,9 +58,9 @@ class LogCollector:
 async def test_non_blocking_stream_running_event_loop(mocker):
     stream = NonBlockingStream()
 
-    mocked = mocker.patch.object(asyncio, 'ensure_future', autospec=True)
+    mocker.patch.object(asyncio, 'ensure_future', autospec=True)
     stream.start(lambda x: None)
-    mocked.assert_called_once()
+    asyncio.ensure_future.assert_called_once()
 
 
 @pytest.mark.unit
@@ -71,9 +71,9 @@ def test_non_blocking_stream_non_running_event_loop(mocker):
 
     stream = NonBlockingStream()
 
-    mocked = mocker.patch.object(loop, 'run_until_complete', autospec=True)
+    mocker.patch.object(loop, 'run_until_complete', autospec=True)
     stream.start(lambda x: None)
-    mocked.assert_called_once()
+    loop.run_until_complete.assert_called_once()
 
 
 @pytest.mark.utils
@@ -207,4 +207,4 @@ async def test_non_blocking_stream_concurrent_streams(mocker):
 
     stream = NonBlockingStream()
     await stream.read_concurrent(lambda x: None, *command)
-    mocked.assert_called_once_with(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    asyncio.create_subprocess_exec.assert_called_once_with(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)

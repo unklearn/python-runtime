@@ -58,8 +58,6 @@ class NonBlockingStream:
         # Read and wait for next lien
         while True:
             line = await stream.readline()
-            print(line)
-            print('end')
             # If no logging interval is defined, immediately callback
             if logging_interval == 0:
                 # EOF or end of stream
