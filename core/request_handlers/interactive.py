@@ -1,4 +1,3 @@
-import os
 import contextlib
 import code
 from io import StringIO
@@ -8,7 +7,6 @@ from subprocess import PIPE
 import subprocess
 from tornado import gen
 
-from core.stream import capture_logs
 from core.constants import CellEvents, CellExecutionStatus, CELLS_NAMESPACE
 from core.utils import create_temporary_shell_file
 

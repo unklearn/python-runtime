@@ -19,7 +19,9 @@ setup(name='unklearn_python_runtime',
       extras_require={
         'testing': [
             'pytest==4.6.1',
-            'coverage==4.5.3'
+            'coverage==4.5.3',
+            'pytest-mock==1.10.4',
+            'pytest-asyncio==0.10.0'
         ],
         'development': [
             'yapf==0.27.0'
