@@ -3,8 +3,7 @@ import pytest
 import asyncio
 import sys
 
-
-from ..stream import NonBlockingStream
+from ..stream import NonBlockingProcessStream
 
 __author__ = 'Tharun Mathew Paul (tmpaul06@gmail.com)'
 
@@ -26,8 +25,8 @@ class FakeProcess:
     def stderr(self):
         return FakeAwaitableStream('stderr')
 
-class FakeAwaitableStream:
 
+class FakeAwaitableStream:
     def __init__(self, arg):
         self.arg = arg
         self.finished = False
@@ -41,7 +40,6 @@ class FakeAwaitableStream:
 
 
 class LogCollector:
-
     def __init__(self):
         self.out_data = []
         self.err_data = []
@@ -52,11 +50,12 @@ class LogCollector:
         elif data['key'] == 'err':
             self.err_data += data['lines']
 
+
 @pytest.mark.unit
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
 async def test_non_blocking_stream_running_event_loop(mocker):
-    stream = NonBlockingStream()
+    stream = NonBlockingProcessStream()
 
     mocker.patch.object(asyncio, 'ensure_future', autospec=True)
     stream.start(lambda x: None)
@@ -69,7 +68,7 @@ def test_non_blocking_stream_non_running_event_loop(mocker):
 
     loop = asyncio.get_event_loop()
 
-    stream = NonBlockingStream()
+    stream = NonBlockingProcessStream()
 
     mocker.patch.object(loop, 'run_until_complete', autospec=True)
     stream.start(lambda x: None)
@@ -80,7 +79,7 @@ def test_non_blocking_stream_non_running_event_loop(mocker):
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
 async def test_non_blocking_stream_read(mocker):
-    stream = NonBlockingStream()
+    stream = NonBlockingProcessStream()
     string_stream = FakeAwaitableStream('test')
     stub = mocker.stub(name='fake_callback')
     await stream.read(string_stream, stub)
@@ -92,46 +91,37 @@ async def test_non_blocking_stream_read(mocker):
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
 async def test_non_blocking_stream_concurrency(mocker):
-    stream = NonBlockingStream()
+    stream = NonBlockingProcessStream()
 
-    mocked = mocker.patch.object(asyncio, 'create_subprocess_exec', autospec=True)
+    mocked = mocker.patch.object(asyncio,
+                                 'create_subprocess_exec',
+                                 autospec=True)
 
     mocked.return_value = asyncio.Future()
     mocked.return_value.set_result(FakeProcess())
 
     stub = mocker.stub(name='fake_callback')
-    await stream.read_concurrent(stub, ['dummy command'])
+    await stream.run_process(stub, ['dummy command'])
 
-    stub.assert_any_call({
-        'key': 'err',
-        'lines': ['stderr']
-    })
+    stub.assert_any_call({'key': 'err', 'lines': ['stderr']})
 
-    stub.assert_any_call({
-        'key': 'out',
-        'lines': ['stdout']
-    })
+    stub.assert_any_call({'key': 'out', 'lines': ['stdout']})
 
 
 @pytest.mark.utils
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
 async def test_non_blocking_stream_concurrency_with_async_bash_command(mocker):
-    stream = NonBlockingStream()
+    stream = NonBlockingProcessStream()
 
     stub = mocker.stub(name='fake_callback')
-    await stream.read_concurrent(stub, "bash", "-c", 'sleep 0.01 && echo "First" && sleep 0.01 && '
-                                                   'echo "Second" && sleep 0.01 && lsf')
+    await stream.run_process(
+        stub, "bash", "-c", 'sleep 0.01 && echo "First" && sleep 0.01 && '
+        'echo "Second" && sleep 0.01 && lsf')
 
-    stub.assert_any_call({
-        'key': 'out',
-        'lines': ['First\n']
-    })
+    stub.assert_any_call({'key': 'out', 'lines': ['First\n']})
 
-    stub.assert_any_call({
-        'key': 'out',
-        'lines': ['Second\n']
-    })
+    stub.assert_any_call({'key': 'out', 'lines': ['Second\n']})
 
     stub.assert_any_call({
         'key': 'err',
@@ -142,22 +132,25 @@ async def test_non_blocking_stream_concurrency_with_async_bash_command(mocker):
 @pytest.mark.utils
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
-async def test_non_blocking_stream_concurrency_with_async_python_command(mocker):
-    stream = NonBlockingStream()
+async def test_non_blocking_stream_concurrency_with_async_python_command(
+        mocker):
+    stream = NonBlockingProcessStream()
 
     collector = LogCollector()
 
-    await stream.read_concurrent(collector.collect, sys.executable, "-c", "import asyncio\nasync def wait(s):\n"
-                                                             "\tawait asyncio.sleep(0.01)\n"
-                                                             "\tprint(s)\n"
-                                                             "\tif s == 'Second':\n"
-                                                             "\t\traise Exception('Oh nooes')\n"
-                                                             "async def main():\n"
-                                                             "\tawait wait('First')\n"
-                                                             "\tawait wait('Second')\n"
-                                                             "\tawait wait('Third')\n"
-                                                             "loop = asyncio.get_event_loop()\n"
-                                                             "loop.run_until_complete(main())\n")
+    await stream.run_process(
+        collector.collect, sys.executable, "-c",
+        "import asyncio\nasync def wait(s):\n"
+        "\tawait asyncio.sleep(0.01)\n"
+        "\tprint(s)\n"
+        "\tif s == 'Second':\n"
+        "\t\traise Exception('Oh nooes')\n"
+        "async def main():\n"
+        "\tawait wait('First')\n"
+        "\tawait wait('Second')\n"
+        "\tawait wait('Third')\n"
+        "loop = asyncio.get_event_loop()\n"
+        "loop.run_until_complete(main())\n")
 
     assert 'First\n' in collector.out_data
     assert 'Second\n' in collector.out_data
@@ -170,28 +163,26 @@ async def test_non_blocking_stream_concurrency_with_async_python_command(mocker)
 @pytest.mark.stream_utils
 @pytest.mark.asyncio
 async def test_non_blocking_stream_formatters(mocker):
-    stream = NonBlockingStream({
-        'stdout': lambda x: 'stdout::{}'.format(x),
-        'stderr': lambda x: 'stderr::{}'.format(x)
-    })
+    stream = NonBlockingProcessStream(
+        {
+            'stdout': lambda x: 'stdout::{}'.format(x),
+            'stderr': lambda x: 'stderr::{}'.format(x)
+        })
 
-    mocked = mocker.patch.object(asyncio, 'create_subprocess_exec', autospec=True)
+    mocked = mocker.patch.object(asyncio,
+                                 'create_subprocess_exec',
+                                 autospec=True)
 
     mocked.return_value = asyncio.Future()
     mocked.return_value.set_result(FakeProcess())
 
     stub = mocker.stub(name='fake_callback')
-    await stream.read_concurrent(stub, ['dummy command'])
+    await stream.run_process(stub, ['dummy command'])
 
-    stub.assert_any_call({
-        'key': 'err',
-        'lines': ['stderr::stderr']
-    })
+    stub.assert_any_call({'key': 'err', 'lines': ['stderr::stderr']})
 
-    stub.assert_any_call({
-        'key': 'out',
-        'lines': ['stdout::stdout']
-    })
+    stub.assert_any_call({'key': 'out', 'lines': ['stdout::stdout']})
+
 
 @pytest.mark.utils
 @pytest.mark.stream_utils
@@ -200,11 +191,16 @@ async def test_non_blocking_stream_concurrent_streams(mocker):
 
     command = ['/bin/sh', 'echo "Hello"']
 
-    mocked = mocker.patch.object(asyncio, 'create_subprocess_exec', autospec=True)
+    mocked = mocker.patch.object(asyncio,
+                                 'create_subprocess_exec',
+                                 autospec=True)
 
     mocked.return_value = asyncio.Future()
     mocked.return_value.set_result(FakeProcess())
 
-    stream = NonBlockingStream()
-    await stream.read_concurrent(lambda x: None, *command)
-    asyncio.create_subprocess_exec.assert_called_once_with(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    stream = NonBlockingProcessStream()
+    await stream.run_process(lambda x: None, *command)
+    asyncio.create_subprocess_exec.assert_called_once_with(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)

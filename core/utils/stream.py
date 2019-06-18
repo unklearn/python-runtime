@@ -5,7 +5,7 @@ import asyncio
 from asyncio.subprocess import PIPE
 
 
-class NonBlockingStream:
+class NonBlockingProcessStream:
     """Non blocking async stream for reading stderr and stdout
 
     Based on: # https://stackoverflow.com/questions/17190221/
@@ -25,10 +25,7 @@ class NonBlockingStream:
         """
         self.formatters = formatters or {}
 
-    async def read(self, stream,
-                   display,
-                   formatter=None,
-                   logging_interval=0):
+    async def read(self, stream, display, formatter=None, logging_interval=0):
         """Read from stream line by line until EOF, capture lines and call display method.
 
         Parameters
@@ -83,14 +80,13 @@ class NonBlockingStream:
 
     def _get_keyed_callback(self, key, callback):
         """Generate a callback function that outputs stream with given key"""
+
         def get_keyed_cb(lines):
-            return callback({
-                'key': key,
-                'lines': lines
-            })
+            return callback({'key': key, 'lines': lines})
+
         return get_keyed_cb
 
-    async def read_concurrent(self, callback, *cmd):
+    async def run_process(self, callback, *cmd):
         """Capture cmd's stdout, stderr while displaying them as they arrive
         (line by line).
 
@@ -102,15 +98,15 @@ class NonBlockingStream:
 
         try:
             await asyncio.gather(
-                self.read(process.stdout, self._get_keyed_callback('out', callback), self.formatters.get('stdout', None)),
-                self.read(process.stderr, self._get_keyed_callback('err', callback), self.formatters.get('stderr', None))
-            )
+                self.read(process.stdout,
+                          self._get_keyed_callback('out', callback),
+                          self.formatters.get('stdout', None)),
+                self.read(process.stderr,
+                          self._get_keyed_callback('err', callback),
+                          self.formatters.get('stderr', None)))
         except Exception as e:
             process.kill()
-            callback({
-                'key': 'err',
-                'lines': [str(e)]
-            })
+            callback({'key': 'err', 'lines': [str(e)]})
         finally:
             # wait for the process to exit
             rc = await process.wait()
@@ -129,13 +125,14 @@ class NonBlockingStream:
         """
         # run the event loop
         if os.name == 'nt':
-            loop = asyncio.ProactorEventLoop()  # for subprocess' pipes on Windows
+            loop = asyncio.ProactorEventLoop(
+            )  # for subprocess' pipes on Windows
             asyncio.set_event_loop(loop)
         else:
             loop = asyncio.get_event_loop()
 
         if loop.is_running():
-            asyncio.ensure_future(self.read_concurrent(callback, *command), loop=loop)
+            asyncio.ensure_future(self.run_process(callback, *command),
+                                  loop=loop)
         else:
-            loop.run_until_complete(
-                self.read_concurrent(callback, *command))
+            loop.run_until_complete(self.run_process(callback, *command))

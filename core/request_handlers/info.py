@@ -13,7 +13,7 @@ class InfoRequestHandler(tornado.web.RequestHandler):
             json.dumps({
                 "name": "python-runtime",
                 "image": "python",
-                "tagRegex": "^(3.[5-9]+)|latest",
+                "tagRegex": r"^(3.[5-9]+)|latest",
                 "modes": ["interactive", "file", "endpoint"],
                 "languages": ["shell", "python"]
             }))
