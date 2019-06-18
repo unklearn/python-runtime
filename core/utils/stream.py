@@ -132,7 +132,8 @@ class NonBlockingProcessStream:
             loop = asyncio.get_event_loop()
 
         if loop.is_running():
-            asyncio.ensure_future(self.run_process(callback, *command),
-                                  loop=loop)
+            return asyncio.ensure_future(self.run_process(callback, *command),
+                                         loop=loop)
         else:
-            loop.run_until_complete(self.run_process(callback, *command))
+            return loop.run_until_complete(self.run_process(
+                callback, *command))
