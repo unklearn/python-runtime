@@ -18,18 +18,31 @@ setup(name='unklearn_python_runtime',
       },
       extras_require={
         'testing': [
-            'pytest==4.6.1',
-            'coverage==4.5.3',
-            'pytest-mock==1.10.4',
-            'pytest-asyncio==0.10.0'
+            'pytest',
+            'coverage',
+            'pytest-mock',
+            'pytest-asyncio'
         ],
         'development': [
-            'yapf==0.27.0'
+            'yapf'
         ]
       },
+      classifiers=[
+        # Trove classifiers
+        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: Implementation :: PyPy'
+      ],
       install_requires=[
-            'tornado==5.0.0',
-            'requests==2.22.0',
-            'flask-socketio==3.3.2'
+            'tornado',
+            'requests',
+            'flask-socketio'
       ])
 

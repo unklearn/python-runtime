@@ -60,7 +60,7 @@ async def test_non_blocking_stream_running_event_loop(mocker):
 
     mocker.patch.object(asyncio, 'ensure_future', autospec=True)
     stream.start(lambda x: None)
-    asyncio.ensure_future.assert_called_once()
+    assert asyncio.ensure_future.call_count == 1
 
 
 @pytest.mark.unit
@@ -73,7 +73,7 @@ def test_non_blocking_stream_non_running_event_loop(mocker):
 
     mocker.patch.object(loop, 'run_until_complete', autospec=True)
     stream.start(lambda x: None)
-    loop.run_until_complete.assert_called_once()
+    assert loop.run_until_complete.call_count == 1
 
 
 @pytest.mark.utils

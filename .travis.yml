@@ -1,3 +1,4 @@
+dist: xenial   # required for Python >= 3.7
 env:
   global:
     - CC_TEST_REPORTER_ID=75c7ab4b9e49fab27658bfd004735721b927850b1b0f3168de9077d7f51102b3
@@ -5,6 +6,8 @@ env:
 language: python
 matrix:
   include:
+  - name: "3.8 Tests"
+    python: "3.8"
   - name: "3.7 Tests"
     python: "3.7"
   - name: "3.5 Tests"
