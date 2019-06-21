@@ -74,8 +74,8 @@ async def test_async_process_registration(mocker):
     mocked.return_value = f
     await stream.run('Dummy')
 
-    register_mock.assert_called_once_with(fp)
-    deregister_mock.assert_called_once()
+    r.register.assert_called_once_with(fp)
+    r.deregister.assert_called_once()
 
 
 @pytest.mark.utils
