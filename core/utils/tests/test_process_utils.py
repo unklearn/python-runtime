@@ -75,7 +75,7 @@ async def test_async_process_registration(mocker):
     await stream.run('Dummy')
 
     r.register.assert_called_once_with(fp)
-    r.deregister.assert_called_once()
+    r.deregister.call_count == 1
 
 
 @pytest.mark.utils
