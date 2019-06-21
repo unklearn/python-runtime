@@ -1,27 +1,5 @@
-import json
-
+from support.socket import DummySocketIO
 from .base import BaseConfig
-
-
-class DummySocketIO:
-    def __init__(self):
-        self._queue = []
-
-    def emit(self, event, args, **kwargs):
-        self._queue.append({'event': event, 'args': args, 'kwargs': kwargs})
-
-    def has_event(self, event):
-        return any([d['event'] == event for d in self._queue])
-
-    def find_event(self, event, args, **kwargs):
-        for d in self._queue:
-            if json.dumps(d) == json.dumps({
-                    'event': event,
-                    'args': args,
-                    'kwargs': kwargs
-            }):
-                return True
-        return False
 
 
 class TestingConfig(BaseConfig):

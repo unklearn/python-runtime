@@ -1,14 +1,13 @@
 import contextlib
-import code
+import os
 from io import StringIO
 
 import tornado.web
-from subprocess import PIPE
-import subprocess
 from tornado import gen
+from tornado.ioloop import IOLoop
 
 from core.constants import CellEvents, CellExecutionStatus, CELLS_NAMESPACE
-from core.utils import create_temporary_shell_file
+from core.utils import ProcessRegistryObject, AsyncProcess, LocalSocketIO, CellEventsSocket
 
 
 class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
@@ -19,9 +18,10 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
 
     """
 
-    def initialize(self, socketio):
-        self.console = code.InteractiveConsole()
+    def initialize(self, socketio=None, console=None, process_registry=None):
+        self.console = console
         self.socketio = socketio
+        self.process_registry = process_registry
 
     @gen.coroutine
     def execute_interactive(self, code, cell_id, channel):
@@ -52,11 +52,15 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
 
         out = out.getvalue()
         err = err.getvalue()
-        self.socketio.emit(CellEvents.RESULT, {
-            'id': cell_id,
-            'output': out,
-            'error': err,
-        },
+        res = {'id': cell_id}
+        if err and len(err):
+            res['error'] = err
+
+        if out and len(out):
+            res['output'] = out
+
+        self.socketio.emit(CellEvents.RESULT,
+                           res,
                            room=channel,
                            namespace=CELLS_NAMESPACE)
 
@@ -73,42 +77,37 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
     def execute_shell(self, code, cell_id, channel):
+        socketio = LocalSocketIO(self.socketio,
+                                 namespace=CELLS_NAMESPACE,
+                                 channel=channel)
+
+        cell_socket = CellEventsSocket(socketio, cell_id)
+
         # Let notebook know cell is busy
-        self.socketio.emit(CellEvents.START_RUN, {
-            'id': cell_id,
-            'status': CellExecutionStatus.BUSY
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
-        with create_temporary_shell_file(cell_id, code) as filename:
-            process = subprocess.run(['bash', filename],
-                                     stdout=PIPE,
-                                     stderr=PIPE)
-            out, err = process.stdout, process.stderr
-            self.socketio.emit(
-                CellEvents.RESULT, {
-                    'id': cell_id,
-                    'output': out.decode('utf-8'),
-                    'error': err.decode('utf-8').replace(filename, '-bash'),
-                },
-                room=channel,
-                namespace=CELLS_NAMESPACE)
-        self.socketio.emit(CellEvents.END_RUN, {
-            'id':
-            cell_id,
-            'status':
-            CellExecutionStatus.ERROR if
-            (err and len(err)) else CellExecutionStatus.DONE
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
+        cell_socket.start()
+
+        # Create a process registry object if it does not exist
+        pro = self.process_registry.get_process_info(cell_id)
+        if pro is None:
+            pro = ProcessRegistryObject(self.process_registry, cell_id=cell_id)
+        else:
+            # Kill process and children
+            yield pro.kill()
+
+        # Start process
+        yield AsyncProcess(pro,
+                           stdout_cb=cell_socket.stdout,
+                           stderr_cb=cell_socket.stderr,
+                           done_cb=cell_socket.done).start('/bin/bash', code)
 
     @gen.coroutine
     def execute_code(self, language, cell_id, channel, code):
         if language == 'shell':
-            yield self.execute_shell(code, cell_id, channel)
+            IOLoop.current().spawn_callback(self.execute_shell, code, cell_id,
+                                            channel)
             self.write('Ok')
         else:
+            # For console, we do not have process streams and we try synchronous code execution
             yield self.execute_interactive(code, cell_id, channel)
             self.write('Ok')
 

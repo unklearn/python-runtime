@@ -1,5 +1,7 @@
 from tornado.testing import AsyncHTTPTestCase
-from core.app import app
+from core.app import make_app
+
+app = make_app()
 
 
 class TestHandlerBase(AsyncHTTPTestCase):
@@ -8,7 +10,7 @@ class TestHandlerBase(AsyncHTTPTestCase):
         self.socketio = app.config.SOCKETIO
 
     def get_app(self):
-        return app      # this is the global app that we created above
+        return app  # this is the global app that we created above
 
     def tearDown(self):
         self.socketio._queue = []

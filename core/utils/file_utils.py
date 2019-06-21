@@ -3,7 +3,6 @@ import re
 from contextlib import contextmanager
 
 
-@contextmanager
 def create_temporary_shell_file(cell_id, contents, temp_dir='tmp'):
     """Create a temporary shell file in the runtime to execute bash scripts
 
@@ -28,11 +27,7 @@ def create_temporary_shell_file(cell_id, contents, temp_dir='tmp'):
     # Make file executable
     os.system('chmod +x {}'.format(filename))
 
-    # Yield using contextmanager
-    try:
-        yield filename
-    finally:
-        os.unlink(filename)
+    return filename
 
 
 def secure_relative_file_path(file_path):
