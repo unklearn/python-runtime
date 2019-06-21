@@ -1,5 +1,4 @@
 import contextlib
-import os
 from io import StringIO
 
 import tornado.web
@@ -7,14 +6,16 @@ from tornado import gen
 from tornado.ioloop import IOLoop
 
 from core.constants import CellEvents, CellExecutionStatus, CELLS_NAMESPACE
-from core.utils import ProcessRegistryObject, AsyncProcess, LocalSocketIO, CellEventsSocket
+from core.utils import ProcessRegistryObject, AsyncProcess, LocalSocketIO, \
+    CellEventsSocket
 
 
 class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
     """A request handler for executing code in an interactive fashion
 
     This is probably better handled by a xterm front-end with terminado backend.
-    For now we are simply executing the shell commands by writing to a temporary file
+    For now we are simply executing the shell commands by writing to a temporary
+     file
 
     """
 
@@ -26,7 +27,8 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
     @gen.coroutine
     def execute_interactive(self, code, cell_id, channel):
         """Execute the code provided in cell with specified id"""
-        # Execute code and on receiving input/output pipe them to server using callback_url
+        # Execute code and on receiving input/output pipe them to server using
+        # callback_url
         out = StringIO()
         err = StringIO()
 
@@ -107,7 +109,8 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
                                             channel)
             self.write('Ok')
         else:
-            # For console, we do not have process streams and we try synchronous code execution
+            # For console, we do not have process streams and we try synchronous
+            # code execution
             yield self.execute_interactive(code, cell_id, channel)
             self.write('Ok')
 

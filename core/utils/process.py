@@ -9,10 +9,12 @@ from psutil import NoSuchProcess
 
 
 class AsyncProcess:
-    """Non blocking async process for reading stderr and stdout streams in a non blocking fashion
+    """Non blocking async process for reading stderr and stdout streams in a non
+     blocking fashion
 
     Based on: # https://stackoverflow.com/questions/17190221/
-    subprocess-popen-cloning-stdout-and-stderr-both-to-terminal-and-variables/25960956#25960956
+    subprocess-popen-cloning-stdout-and-stderr-both-to-terminal-and-
+    variables/25960956#25960956
     """
 
     def __init__(self,
@@ -26,9 +28,10 @@ class AsyncProcess:
         ----------
         registry_object: ProcessRegistyObject
             An object that holds the process registry information
-            The process registry contains the mapping from notebook cell to process pid.
-            When the process registers with the registry, it gets a callback. The callback
-            will be used to relay process output
+            The process registry contains the mapping from notebook cell to
+            process pid. When the process registers with the registry,
+            it gets a callback. The callback will be used to relay process
+            output
 
         stdout_cb: method
             A callback function to execute when stdout is received.
@@ -56,7 +59,8 @@ class AsyncProcess:
         self.formatters = formatters or {}
 
     async def read(self, stream, display, formatter=None, logging_interval=0):
-        """Read from stream line by line until EOF, capture lines and call display method.
+        """Read from stream line by line until EOF, capture lines and call
+        display method.
 
         Parameters
         ----------
@@ -70,7 +74,8 @@ class AsyncProcess:
             An optional formatter method that can be used for format stream output
 
         logging_interval: int, optional
-            An optional logging interval. If provided, logs will be sent with the specified interval
+            An optional logging interval. If provided, logs will be sent with
+            the specified interval
 
         """
         if not formatter:
