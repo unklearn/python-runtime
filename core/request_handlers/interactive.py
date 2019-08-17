@@ -1,13 +1,49 @@
 import contextlib
 from io import StringIO
+import sys
 
 import tornado.web
 from tornado import gen
 from tornado.ioloop import IOLoop
 
-from core.constants import CellEvents, CellExecutionStatus, CELLS_NAMESPACE
+from core.constants import CELLS_NAMESPACE
 from core.utils import ProcessRegistryObject, AsyncProcess, LocalSocketIO, \
     CellEventsSocket
+
+
+class SocketIOStdoutStream(StringIO):
+    """A stream that takes over stdout and emits via socket."""
+
+    def __init__(self, socket, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.socket = socket
+        self.original_stderr_write = sys.stderr.write
+        self.called = False
+        self.rc = 0
+
+    @contextlib.contextmanager
+    def redirect_stderr_write(self):
+        # Use a stringIO object
+        sys.stderr.write = self.write_error
+        yield self
+        sys.stderr_write = self.original_stderr_write
+        self.close()
+
+    def write(self, string, *args, **kwargs):
+        if self.called is False:
+            self.called = True
+            self.socket.stdout([string])
+            self.called = False
+        else:
+            sys.stdout.write(string)
+
+    def write_error(self, string):
+        self.socket.stderr([string])
+        self.rc = -1
+
+    def close(self, *args, **kwargs):
+        super().close(*args, **kwargs)
+        self.socket.done(self.rc)
 
 
 class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
@@ -29,53 +65,53 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         """Execute the code provided in cell with specified id"""
         # Execute code and on receiving input/output pipe them to server using
         # callback_url
-        out = StringIO()
-        err = StringIO()
 
         # Let notebook know cell is busy
-        self.socketio.emit(CellEvents.START_RUN, {
-            'id': cell_id,
-            'status': CellExecutionStatus.BUSY
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
+        socketio = LocalSocketIO(self.socketio,
+                                 namespace=CELLS_NAMESPACE,
+                                 channel=channel)
 
-        status = CellExecutionStatus.DONE
+        cell_socket = CellEventsSocket(socketio, cell_id)
+
+        # Let notebook know cell is busy
+        cell_socket.start()
+
+        stream = SocketIOStdoutStream(cell_socket)
+
+        import types
+        import copy
+
+        sys_copy = types.ModuleType('sys')
+
+        for name, val in sys.__dict__.items():
+            if name == 'stdout':
+                sys_copy.__dict__['stdout'] = stream
+            else:
+                sys_copy.__dict__[name] = val
+
+        original_import = __builtins__['__import__']
+
+        builtins_copy = copy.copy(__builtins__)
+
+        def custom_import(name, *args, **kwargs):
+            if name == 'sys':
+                return sys_copy
+            return original_import(name, *args, **kwargs)
+
+        builtins_copy['__import__'] = custom_import
+        builtins_copy['print'] = lambda *args: cell_socket.stdout(
+            [' '.join(args) + '\n'])
+
+        # Redirect all print statements through stdout
+        self.console.locals = {'__builtins__': builtins_copy}
+
         try:
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(
-                    err):
+            with stream.redirect_stderr_write():
                 yield self.console.runcode(code)
-        except SyntaxError:
-            self.console.showsyntaxerror()
-            status = CellExecutionStatus.ERROR
-        except:
-            self.console.showtraceback()
-            status = CellExecutionStatus.ERROR
-
-        out = out.getvalue()
-        err = err.getvalue()
-        res = {'id': cell_id}
-        if err and len(err):
-            res['error'] = err
-
-        if out and len(out):
-            res['output'] = out
-
-        self.socketio.emit(CellEvents.RESULT,
-                           res,
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
-
-        if err and len(err):
-            status = CellExecutionStatus.ERROR
-
-        # Signal execution end
-        self.socketio.emit(CellEvents.END_RUN, {
-            'id': cell_id,
-            'status': status
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
+        except KeyboardInterrupt as e:
+            # InteractiveConsole may not always catch this!
+            cell_socket.stderr([str(e)])
+            cell_socket.done(-1)
 
     @gen.coroutine
     def execute_shell(self, code, cell_id, channel):
