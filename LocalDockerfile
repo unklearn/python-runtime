@@ -1,0 +1,13 @@
+FROM python:3.5
+
+RUN mkdir -p /opt/python-runtime
+
+COPY setup.py /opt/python-runtime/setup.py
+
+RUN python /opt/python-runtime/setup.py develop
+
+COPY . /opt/python-runtime
+
+EXPOSE 8888
+
+CMD ["python", "/opt/python-runtime/server.py"]

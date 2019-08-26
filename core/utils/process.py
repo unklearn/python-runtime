@@ -7,6 +7,39 @@ import psutil
 from asyncio.subprocess import PIPE
 from psutil import NoSuchProcess
 
+import os
+import stat
+
+_fd_types = (('REG', stat.S_ISREG), ('FIFO', stat.S_ISFIFO),
+             ('DIR', stat.S_ISDIR), ('CHR', stat.S_ISCHR),
+             ('BLK', stat.S_ISBLK), ('LNK', stat.S_ISLNK), ('SOCK',
+                                                            stat.S_ISSOCK))
+
+
+def fd_table_status():
+    result = []
+    for fd in range(100):
+        try:
+            s = os.fstat(fd)
+        except:
+            continue
+        for fd_type, func in _fd_types:
+            if func(s.st_mode):
+                break
+        else:
+            fd_type = str(s.st_mode)
+        result.append((fd, fd_type))
+    return result
+
+
+def fd_table_status_logify(fd_table_result):
+    return ('Open file handles: ' +
+            ', '.join(['{0}: {1}'.format(*i) for i in fd_table_result]))
+
+
+def fd_table_status_str():
+    return fd_table_status_logify(fd_table_status())
+
 
 class AsyncProcess:
     """Non blocking async process for reading stderr and stdout streams in a non
@@ -89,6 +122,7 @@ class AsyncProcess:
 
         # Read and wait for next lien
         while True:
+            print('Waiting for', stream)
             line = await stream.readline()
             # If no logging interval is defined, immediately callback
             if logging_interval == 0:
@@ -113,19 +147,21 @@ class AsyncProcess:
             else:
                 lines.append(formatter(line.decode('utf-8')))
 
-    async def feed_stdin(self, stdin, input):
+    async def feed_stdin(self, stdin):
         """A public copy of asyncio.subprocess.Process._feed_stdin"""
-        if isinstance(input, str):
-            input = input.encode('utf-8')
-
-        # Write to stdin
-        stdin.write(input)
-        try:
-            await stdin.drain()
-        except (BrokenPipeError, ConnectionResetError) as exc:
-            # communicate() ignores BrokenPipeError and ConnectionResetError
-            pass
-        stdin.close()
+        while True:
+            cmd = input()
+            # Write to stdin
+            stdin.write(cmd)
+            stdin.flush()
+            #try:
+            print('AWaiting drain')
+            #await stdin.drain()
+            # except (BrokenPipeError, ConnectionResetError) as exc:
+            #     print(exc)
+            #     # communicate() ignores BrokenPipeError and ConnectionResetError
+            #     pass
+            print('Done feeding')
 
     @staticmethod
     def kill_child_processes(process):
@@ -158,39 +194,53 @@ class AsyncProcess:
 
         """
         # start process using Subprocess command
+        r, w = os.pipe()
+        self.r = r
+        self.w = os.fdopen(w, 'w')
+        # Listening on socket, send messages.
+        # Keep track of status within object
+        # if busy, add to internal queue
         process = await asyncio.create_subprocess_exec(
-            *cmd_with_args,
-            stdin=PIPE if input else None,
+            *cmd_with_args + [str(r)],
+            stdin=r,
             stdout=PIPE,
-            stderr=PIPE)
+            stderr=PIPE,
+            pass_fds=(r, w))
+        #self.w.close()
+        self.process = process
+        #reader = os.fdopen(r, 'r')
+        #os.close(r)
+        print('Closing')
         # Register with registry so that server can interrupt process, send input etc
         self.registry_object.register(process)
 
-        if input is not None:
-            # Here we use the internal method to feed into stdin because
-            # we don't want to wait on communicate. Instead we do not block
-            # and use asyncio
-            await self.feed_stdin(process.stdin, input)
-
         try:
+            # Internal execution queue, that waits for process to finish
+            # If execution queue is full, we apply backpressure and drop
+            # new requests
+            print('Gathering')
             await asyncio.gather(
+                self.feed_stdin(self.w),
                 self.read(process.stdout, self.stdout,
                           self.formatters.get('stdout', None)),
                 self.read(process.stderr, self.stderr,
                           self.formatters.get('stderr', None)))
+            print('After gathering')
         except Exception as e:
+            print(e)
             AsyncProcess.kill_child_processes(process)
             process.kill()
             # Kill child process if any
             self.stderr([str(e)])
         finally:
+            print('Finally')
             # wait for the process to exit
-            rc = await process.wait()
-            self.done(rc)
-            self.registry_object.deregister()
+            # rc = await process.wait()
+            # self.done(rc)
+            # self.registry_object.deregister()
 
         # Send the return code back
-        return rc
+        return 0
 
     def start(self, cmd_string, input=None):
         """Start the command and wait for output in a non blocking fashion.

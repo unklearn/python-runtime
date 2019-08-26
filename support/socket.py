@@ -1,6 +1,7 @@
 # coding: utf8
 import asyncio
 import json
+import requests
 
 __author__ = 'Tharun Mathew Paul (tmpaul06@gmail.com)'
 
@@ -41,3 +42,15 @@ class DummySocketIO:
                     await asyncio.sleep(0.5)
             else:
                 return True
+
+
+class HttpSocketIO:
+    """A class that pushes messages to a given http endpoint"""
+
+    def __init__(self, srv_addr):
+        self.url = srv_addr
+        self.session = requests.Session()
+
+    def emit(self, event, args, **kwargs):
+        with self.session:
+            requests.post(self.url + '/runtime-messages', json=args)

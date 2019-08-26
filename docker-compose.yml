@@ -1,0 +1,29 @@
+version: "2.2"
+
+services:
+  internal-api:
+    build:
+      context: .
+      dockerfile: LocalDockerfile
+    volumes:
+      - .:/opt/python-runtime
+    environment:
+      - PYTHONASYNCIODEBUG=1
+      - PYTHONUNBUFFERED=1
+      - UNKLEARN_SERVER_URI=http://echo_backend_server:3005
+      - UNKLEARN_RUNTIME_MODES=interactive
+      - UNKLEARN_RUNTIME_LANGUAGES=python,shell
+      - UNKLEARN_ENVIRONMENT_TYPE=development
+    links:
+      - echo_backend_server
+    depends_on:
+      - echo_backend_server
+    ports:
+      - "8888:8888"
+  echo_backend_server:
+    build:
+      context: ./support/echo_backend_server
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./support/echo_backend_server/app.js:/app.js
