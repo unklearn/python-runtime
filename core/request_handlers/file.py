@@ -66,24 +66,15 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         return os.path.join(self.file_path_root,
                             secure_relative_file_path(file_path))
 
-    def initialize(self, file_path_root=None, socketio=None):
+    def initialize(self, file_path_root=None, job_loop=None):
         """Init called by tornado"""
         self.file_path_root = file_path_root
-        self.socketio = socketio
+        self.job_loop = job_loop
 
-    def execute_python_file(self, file_path):
-        p = Popen(
-            [sys.executable, file_path],
-            env={
-                # Module discovery
-                'PYTHONPATH': self.file_path_root
-            },
-            stdout=PIPE,
-            stderr=PIPE,
-            cwd=self.file_path_root)
-        # This is blocking. TODO: Tharun use asyncio to unblock
-        stdout, stderr = p.communicate()
-        return stderr.decode('utf-8'), stdout.decode('utf-8')
+    def execute_python_file(self, cell_id, file_path):
+        self.job_loop.submit(cell_id, sys.executable, '-u', file_path, env={
+            'PYTHONPATH': self.file_path_root
+        })
 
     def validate_post_body(self, file_data):
         """Validate the necessary arguments"""
@@ -114,35 +105,5 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         channel = file_data.get('channel', None)
 
         file_path = self.get_secure_filename(file_path)
-
-        self.socketio.emit(CellEvents.START_RUN, {
-            'id': cell_id,
-            'status': CellExecutionStatus.BUSY
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
-
-        status = CellExecutionStatus.DONE
-
-        err, out = self.execute_python_file(file_path)
-        self.socketio.emit(CellEvents.RESULT, {
-            'id': cell_id,
-            'output': out,
-            'error': err.replace(self.file_path_root + '/', ''),
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
-
-        if err and len(err):
-            status = CellExecutionStatus.ERROR
-
-        # Signal execution end
-        self.socketio.emit(CellEvents.END_RUN, {
-            'id': cell_id,
-            'status': status
-        },
-                           room=channel,
-                           namespace=CELLS_NAMESPACE)
-
-        # Publish result on socketio channels
+        self.execute_python_file(cell_id, file_path)
         return self.write('Ok')

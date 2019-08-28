@@ -22,11 +22,11 @@ class InteractiveExecutionRequestHandler(tornado.web.RequestHandler):
         self.runner.submit(cell_id, code)
 
     def execute_code(self, cell_id, channel, code):
-        #IOLoop.current().spawn_callback(self.execute_interactive, code, cell_id, channel)
         self.execute_interactive(code, cell_id, channel)
         self.write('Ok')
 
     def get(self):
+        # Get the arguments from code
         code = self.get_query_argument('code')
         channel = self.get_query_argument('channel')
         cell_id = self.get_query_argument('cellId')

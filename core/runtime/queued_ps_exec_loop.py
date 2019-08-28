@@ -34,10 +34,6 @@ class QueuedProcessExecutorJobLoop:
     _request_queue: Queue
         A queue that maintains submitted requests
 
-    _output_queue: Queue
-        A queue that keeps the items from various processes. It will be routed
-        by log router
-
     _cell_status_map: dict
         A dict that maps the status of a cell to a numeric value. If the value
         is -1, then it means cell is IDLE, otherwise the value is the id of the
@@ -63,7 +59,6 @@ class QueuedProcessExecutorJobLoop:
 
     def __init__(self, log_router=None):
         self._request_queue = Queue()
-        self._output_queue = Queue()
         self._cell_status_map = {}
         self._router = log_router
 
@@ -73,20 +68,6 @@ class QueuedProcessExecutorJobLoop:
                                  args=(self._request_queue, ))
         self._listener.start()
 
-    def _spawn_output_listener(self, queue):
-        """Spawn a new listener for getting output from queue."""
-        while True:
-            item = queue.get()
-            # Route to appropriate socket & cell
-            self._route_item(item)
-
-    def _route_item(self, item):
-        """Parse and route to correct socket"""
-        if self._router is None:
-            print(item)
-        else:
-            self._router.route(item)
-
     def _get_pid_for_cid(self, cid):
         pid = self._cell_status_map.get(cid, None)
         if pid is not None:
@@ -95,49 +76,53 @@ class QueuedProcessExecutorJobLoop:
 
     def _run_listener(self, queue):
         """Run a listener loop waiting for items from queue"""
-        # Start a new thread to listen to child process output and stderr
-        o_t = threading.Thread(target=self._spawn_output_listener,
-                               args=(self._output_queue, ))
-        o_t.start()
         # Do not join output queue thread because it will block.
         while True:
             item = queue.get()
-            t = threading.Thread(target=self._run_subprocess, args=item)
+            t = threading.Thread(target=self._run_subprocess, args=(item[0], item[1], item[2]))
             t.start()
 
-    def _read_stream(self, stream, key):
+    def _read_stream(self, stream, cell_id, key):
         for line in iter(stream.readline, b''):
-            self._publish(key, line)
-
-    def _publish(self, key, line):
-        """Publish a line of output from"""
-        self._output_queue.put_nowait(key.encode('utf-8') + b':' + line)
+            self._router.publish(cell_id, key, line)
 
     def _start_readers(self, cell_id, process):
         t1 = threading.Thread(target=self._read_stream,
-                              args=(process.stdout, '{}:out'.format(cell_id)))
+                              args=(process.stdout, cell_id, 'out'))
         t2 = threading.Thread(target=self._read_stream,
-                              args=(process.stderr, '{}:err'.format(cell_id)))
+                              args=(process.stderr, cell_id, 'err'))
         t1.start()
         t2.start()
         # Start and join the threads
         t1.join()
         t2.join()
 
-    def _run_subprocess(self, cell_id, *args):
+    def _run_subprocess(self, cell_id, args, kwargs):
         status = self._cell_status_map.get(cell_id, None)
         if status is not None and status.value != -1:
-            raise Exception('cell {} is already busy with pid {}'.format(
-                cell_id, status.value))
+            msg = 'cell {} is already busy with pid {}'.format(
+                cell_id, status.value)
+            self._router.publish(
+                cell_id,
+                'err',
+                msg
+            )
+            raise Exception(msg)
         process = None
         try:
-            process = subprocess.Popen(*args,
-                                       env={},
+            process = subprocess.Popen(args,
                                        stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            self._cell_status_map[cell_id] = Value('i', process.pid)
-            # Now we need either asyncio or threaded reads that push to our socket.
-            self._start_readers(cell_id, process)
+                                       stderr=subprocess.PIPE,
+                                       bufsize=1,
+                                       **kwargs
+                                       )
+            with self._router.capture_logs(
+                cell_id,
+                stdout=process.stdout,
+                stderr=process.stderr
+            ):
+                self._cell_status_map[cell_id] = Value('i', process.pid)
+                process.wait()
         finally:
             # Here we reset cell status
             if process is not None:
@@ -150,15 +135,15 @@ class QueuedProcessExecutorJobLoop:
 
     def start(self):
         """Start the job queue listener"""
-        yield self._start_listener()
+        self._start_listener()
 
-    def submit(self, cell_id, args):
+    def submit(self, cell_id, *args, **kwargs):
         """Submit a new job for given cell id"""
         if not hasattr(self, '_listener'):
             raise RuntimeError('Instances of {} must be started via `start` '
                                'method before submit is called'.format(
                                    __class__.__name__))
-        self._request_queue.put_nowait([cell_id, args])
+        self._request_queue.put_nowait([cell_id, args, kwargs])
 
     def interrupt(self, cid):
         """Interrupt the running cell's process"""
@@ -184,3 +169,4 @@ class QueuedProcessExecutorJobLoop:
                     self.kill(pid)
         if hasattr(self, '_listener'):
             self._listener.terminate()
+        self._request_queue.close()

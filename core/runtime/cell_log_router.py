@@ -51,26 +51,32 @@ class CellLogRouter:
         self._queue = queue or Queue()
         self._pid = os.getpid()
 
-    def _spawn_output_listener(self, queue):
+    def _spawn_output_listener(self):
         """Spawn a new listener for getting output from queue."""
         while True:
-            [cell_id, key, log] = queue.get()
-            # Route to appropriate socket & cell
-            self.socket.emit('log', {'id': cell_id, key: log})
+            [cell_id, key, log] = self._queue.get()
+            self.publish(cell_id, key, log)
 
     def _read_stream(self, stream, cell_id, key):
-        for line in iter(stream.readline, ''):
+        for line in iter(stream.readline, b''):
             self._queue.put_nowait([cell_id, key, line])
+
+    def publish(self, cell_id, key, line):
+        if isinstance(line, bytes):
+            line = line.decode('utf-8')
+        self.socket.emit('log', {
+            'id': cell_id,
+            key: line
+        })
 
     @contextmanager
     def capture_logs(self,
                      cell_id,
                      stdout=None,
                      stderr=None,
-                     use_sys_streams=True):
+                     use_sys_streams=False):
         """Capture the log output from a given stdout and stderr"""
-        o_t = threading.Thread(target=self._spawn_output_listener,
-                               args=(self._queue, ))
+        o_t = threading.Thread(target=self._spawn_output_listener)
         o_t.start()
         sys_out = None
         sys_err = None
@@ -90,8 +96,8 @@ class CellLogRouter:
             stderr_r, stderr_w = os.pipe()
             sys.stdout = os.fdopen(stdout_w, 'w', buffering=1)
             sys.stderr = os.fdopen(stderr_w, 'w', buffering=1)
-            stdout = os.fdopen(stdout_r, 'r')
-            stderr = os.fdopen(stderr_r, 'r')
+            stdout = os.fdopen(stdout_r, 'rb')
+            stderr = os.fdopen(stderr_r, 'rb')
         try:
             t1 = threading.Thread(target=self._read_stream,
                                   args=(stdout, cell_id, 'out'))

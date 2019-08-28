@@ -50,7 +50,7 @@ class AppFactory:
                 # File runs
                 (r"/file-runs/?", FileExecutionHandler,
                  dict(file_path_root=config.FILE_ROOT_DIR,
-                      socketio=config.SOCKETIO)),
+                      job_loop=self.ps_job_loop)),
                 # Endpoint config dir can be separate, but here is the same
                 (r"/endpoint-configs/?", EndpointConfigurationHandler,
                  dict(config_path_root=config.ENDPOINT_CONFIG_ROOT_DIR)),
