@@ -64,10 +64,7 @@ class CellLogRouter:
     def publish(self, cell_id, key, line):
         if isinstance(line, bytes):
             line = line.decode('utf-8')
-        self.socket.emit('log', {
-            'id': cell_id,
-            key: line
-        })
+        self.socket.emit('log', {'id': cell_id, key: line})
 
     @contextmanager
     def capture_logs(self,

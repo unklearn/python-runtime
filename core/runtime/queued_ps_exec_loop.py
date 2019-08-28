@@ -79,7 +79,8 @@ class QueuedProcessExecutorJobLoop:
         # Do not join output queue thread because it will block.
         while True:
             item = queue.get()
-            t = threading.Thread(target=self._run_subprocess, args=(item[0], item[1], item[2]))
+            t = threading.Thread(target=self._run_subprocess,
+                                 args=(item[0], item[1], item[2]))
             t.start()
 
     def _read_stream(self, stream, cell_id, key):
@@ -102,11 +103,7 @@ class QueuedProcessExecutorJobLoop:
         if status is not None and status.value != -1:
             msg = 'cell {} is already busy with pid {}'.format(
                 cell_id, status.value)
-            self._router.publish(
-                cell_id,
-                'err',
-                msg
-            )
+            self._router.publish(cell_id, 'err', msg)
             raise Exception(msg)
         process = None
         try:
@@ -114,13 +111,10 @@ class QueuedProcessExecutorJobLoop:
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE,
                                        bufsize=1,
-                                       **kwargs
-                                       )
-            with self._router.capture_logs(
-                cell_id,
-                stdout=process.stdout,
-                stderr=process.stderr
-            ):
+                                       **kwargs)
+            with self._router.capture_logs(cell_id,
+                                           stdout=process.stdout,
+                                           stderr=process.stderr):
                 self._cell_status_map[cell_id] = Value('i', process.pid)
                 process.wait()
         finally:

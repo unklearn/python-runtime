@@ -72,9 +72,11 @@ class FileExecutionHandler(tornado.web.RequestHandler):
         self.job_loop = job_loop
 
     def execute_python_file(self, cell_id, file_path):
-        self.job_loop.submit(cell_id, sys.executable, '-u', file_path, env={
-            'PYTHONPATH': self.file_path_root
-        })
+        self.job_loop.submit(cell_id,
+                             sys.executable,
+                             '-u',
+                             file_path,
+                             env={'PYTHONPATH': self.file_path_root})
 
     def validate_post_body(self, file_data):
         """Validate the necessary arguments"""
