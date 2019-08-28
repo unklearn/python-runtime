@@ -7,7 +7,7 @@ from io import StringIO
 from queue import Queue as RegularQueue
 from multiprocessing import Queue
 
-__author__ = 'Tharun Mathew Paul (tharun@bigpiventures.com)'
+__author__ = 'Tharun Mathew Paul (tmpaul06@gmail.com)'
 
 
 class StdoutSocket:

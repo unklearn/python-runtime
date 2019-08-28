@@ -42,8 +42,9 @@ class AppFactory:
                 (r"/info?", InfoRequestHandler),
                 # Interactive REPL like
                 (r"/interactive/?", InteractiveExecutionRequestHandler,
-                 dict(socketio=config.SOCKETIO, console_runner=self.ic_runner)
-                 ),
+                 dict(socketio=config.SOCKETIO,
+                      console_runner=self.ic_runner,
+                      job_loop=self.ps_job_loop)),
                 # Creating files
                 (r"/files/?(?P<file_path>[A-Z0-9a-z_\-.%]+)?", FilesHandler,
                  dict(file_path_root=config.FILE_ROOT_DIR)),
